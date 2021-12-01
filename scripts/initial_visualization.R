@@ -92,9 +92,20 @@ sf_stats <- sites_sf %>%
   left_join(lsm_3000m, by = c('ID' = 'siteID', 'Name')) %>%
   left_join(pc_3000m_sums, by = c('ID' = 'siteID', 'Name'))
 
+# map color by amount of urban cover
+
 ggplot(us_map) +
   geom_sf() +
   geom_sf(
     data = sf_stats,
     mapping = aes(
       color = devo_total))
+
+# map color by amount of forest cover
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = sf_stats,
+    mapping = aes(
+      color = forest_total))
