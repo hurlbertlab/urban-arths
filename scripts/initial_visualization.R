@@ -32,7 +32,7 @@ pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
 
 # distribution of mean forest patch area in square meters
 
-ggplot(lms_3000m) +
+ggplot(lsm_3000m) +
   geom_histogram(aes(x = area_mn))
 
 summary(lsm_3000m$area_mn)
@@ -84,3 +84,17 @@ pc_3000m_sums %>%
   geom_histogram(aes(x = forest_total))
 
 summary(pc_3000m_sums$forest_total)
+
+
+# maps --------------------------------------------------------------------
+
+sf_stats <- sites_sf %>% 
+  left_join(lsm_3000m, by = c('ID' = 'siteID', 'Name')) %>%
+  left_join(pc_3000m_sums, by = c('ID' = 'siteID', 'Name'))
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = sf_stats,
+    mapping = aes(
+      color = devo_total))
