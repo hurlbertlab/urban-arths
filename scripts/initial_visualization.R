@@ -7,7 +7,7 @@ library(sf)
 
 library(ggplot2)
 
-sites <- read_csv('data/raw/2021-06-22_Site.csv') %>% 
+sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
     Name != 'Example Site',
     Latitude < 50)

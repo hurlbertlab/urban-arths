@@ -8,16 +8,16 @@ library(ggplot2)
 library(lubridate)
 library(sf)
 
-cc_sites <- read_csv('data/raw/2021-06-22_Site.csv') %>% 
+cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
     Name != 'Example Site',
     Latitude < 50)
 
-cc_plants <- read_csv('data/raw/2021-06-22_Plant.csv')
+cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv')
 
-cc_surveys <- read_csv('data/raw/2021-06-22_Survey.csv')
+cc_surveys <- read_csv('data/raw/2021-11-18_Survey.csv')
 
-cc_arths <- read_csv('data/raw/2021-06-22_ArthropodSighting.csv')
+cc_arths <- read_csv('data/raw/2021-11-18_ArthropodSighting.csv')
 
 us_map <- st_read('data/geographic/states.shp')
 
@@ -63,7 +63,7 @@ survey_counts %>%
   group_by(Year) %>% 
   summarize(n_sites = n())
 
-# assess sites with more than 10 surveys every year 2018-2021
+# assess sites with more than 10 surveys every year 2018-2020
 
 survey_counts %>% 
   select(SiteID, Year, survey_dates) %>% 
@@ -78,12 +78,6 @@ survey_counts %>%
     survey_counts %>% 
       select(SiteID, Year, survey_dates) %>% 
       filter(survey_dates >= 10, Year == 2020),
-    by = 'SiteID') %>% 
-  select(SiteID) %>% 
-  inner_join(
-    survey_counts %>% 
-      select(SiteID, Year, survey_dates) %>% 
-      filter(survey_dates >= 10, Year == 2021),
     by = 'SiteID') %>% 
   select(SiteID) %>% 
   left_join(

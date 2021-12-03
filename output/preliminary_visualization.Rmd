@@ -1,0 +1,220 @@
+---
+title: "Preliminary Data Visualization"
+author: "Indigo Edwards"
+date: "12/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(sf)
+
+cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
+  filter(
+    Name != 'Example Site',
+    Latitude < 50)
+
+cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv')
+
+cc_surveys <- read_csv('data/raw/2021-11-18_Survey.csv')
+
+cc_arths <- read_csv('data/raw/2021-11-18_ArthropodSighting.csv')
+
+us_map <- st_read('data/geographic/states.shp')
+
+nc <- us_map %>% 
+  filter(NAME == 'North Carolina')
+
+sites_sf <- 
+  cc_sites %>% 
+  st_as_sf(
+    coords = c('Longitude', 'Latitude'),
+    crs = st_crs(us_map))
+
+lsm_3000m <- read_csv('data/processed/lsm_metrics_3000m.csv')
+
+pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
+```
+
+## Reviewing Caterpillars Count! survey data
+
+I'm starting by calculating the number of survey dates at each site in each year. Do we want to assess site usability based on the number of survey dates, or the number of total surveys?
+
+```{r survey date counts, echo = F, message = F}
+
+survey_counts <- cc_sites %>% 
+  select(SiteID = ID) %>% 
+  right_join(
+    cc_plants %>% select(PlantID = ID, SiteFK),
+    by = c('SiteID' = 'SiteFK')) %>% 
+  right_join(
+    cc_surveys %>% 
+      select(surveyID = ID, PlantFK, LocalDate),
+    by = c('PlantID' = 'PlantFK')) %>% 
+  select(SiteID, LocalDate) %>% 
+  distinct() %>% 
+  mutate(Year = year(LocalDate)) %>% 
+  group_by(SiteID, Year) %>% 
+  summarize(survey_dates = n()) %>% 
+  ungroup() %>% 
+  left_join(
+    cc_sites %>% 
+      select(SiteID = ID, Name, Latitude, Longitude, Region),
+    by = 'SiteID') %>% 
+  relocate(SiteID, Name, Year, survey_dates, Region, Latitude, Longitude)
+
+head(survey_counts) %>% knitr::kable(digits = 2)
+
+```
+
+Sites 2 and 258 don't exist in our sites data file. What are they?
+
+Let's look at how many sites had 10 or more surveys each year. I think it would be smart to conduct a power analysis before starting serious analysis, but we'll have to think about whether that would be based on the number of survey dates or the number of total surveys. It probably depends on whether we'd be considering samples as a single survey or a single survey date - survey date seems like it makes more sense.
+
+```{r 10 or more surveys, echo = F}
+
+survey_counts %>% 
+  filter(survey_dates >= 10) %>% 
+  group_by(Year) %>% 
+  summarize(n_sites = n()) %>% 
+  knitr::kable(col.names = c('Year', 'Sites w/ 10+ survey dates'))
+
+```
+
+Unsurprisingly, it looks like only 2018 to 2021 have enough sites with a decent number of survey dates to be usable. It's a pleasant surprise that 2020 might be usable, given the COVID issues with sampling. Let's look at which sites have samples in all the years 2018-2021.
+
+```{r consistent surveys, echo = F}
+
+survey_counts %>% 
+  select(SiteID, Year, survey_dates) %>% 
+  filter(survey_dates >= 10, Year == 2018) %>%
+  inner_join(
+    survey_counts %>% 
+      select(SiteID, Year, survey_dates) %>% 
+      filter(survey_dates >= 10, Year == 2019),
+    by = 'SiteID') %>% 
+  select(SiteID) %>% 
+  inner_join(
+    survey_counts %>% 
+      select(SiteID, Year, survey_dates) %>% 
+      filter(survey_dates >= 10, Year == 2020),
+    by = 'SiteID') %>% 
+  select(SiteID) %>% 
+  inner_join(
+    survey_counts %>% 
+      select(SiteID, Year, survey_dates) %>% 
+      filter(survey_dates >= 10, Year == 2021),
+    by = 'SiteID') %>% 
+  select(SiteID) %>%
+  left_join(
+    cc_sites %>% 
+      select(ID, Name, Region, Latitude, Longitude),
+    by = c('SiteID' = 'ID')) %>% 
+  knitr::kable(digits = 2)
+
+```
+
+Only 6 sites sampled across all of those years, so we'll probably be doing separate analysis in each year.
+
+I put together maps of where the sites with 10 or more survey dates were in each year from 2018 to 2021.
+
+```{r usable site maps, echo = F}
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = survey_counts %>% 
+      filter(
+        !is.na(Name),
+        Year %in% 2018:2021,
+        survey_dates >= 10) %>% 
+      st_as_sf(
+        coords = c('Longitude', 'Latitude'),
+        crs = st_crs(us_map)),
+    mapping = aes(color = survey_dates)) +
+  facet_wrap(~Year) +
+  theme_void()
+```
+
+## Assessing percent cover and landscape metrics data
+
+For this initial assessment, I'm only working with the data from the 3000m buffer scale. I'll do some comparisons across scales later.
+
+```{r data compiling, include = F}
+pc_3000m_sums <- pc_3000m %>% 
+  rowwise() %>% 
+  mutate(
+    devo_total = devo_open + devo_low + devo_med + devo_high,
+    forest_total = forest_decid + forest_everg + forest_mix)
+
+combined_data <- survey_counts %>% 
+  left_join(pc_3000m_sums, by = c('SiteID' = 'siteID', 'Name')) %>% 
+  left_join(lsm_3000m, by = c('SiteID' = 'siteID', 'Name')) %>% 
+  filter(
+    Year %in% 2018:2021,
+    survey_dates >= 10)
+```
+
+Let's look at the data distributions for all of our statistics across sites with 10 or more sampling dates.
+
+```{r data distributions, echo = F, warning = F}
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = area_mn), binwidth = 10) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Mean forest patch area within 3000m of CC sites',
+    x = 'Mean Patch Area (m^2)',
+    y = 'Count')
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = shape_mn), binwidth = 0.1) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Mean forest patch shape index within 3000m of CC sites',
+    x = 'Patch Shape Index (1+)',
+    y = 'Count')
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = contig_mn), binwidth = 0.05) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Mean forest patch contiguity index within 3000m of CC sites',
+    x = 'Mean Patch Contiguity Index (0-1))',
+    y = 'Count')
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = enn_mn), binwidth = 50) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Mean forest patch Euclidean nearest-neighbor distance within 3000m of CC sites',
+    x = 'Mean Euclidean nearest-neighbor distance (m)',
+    y = 'Count')
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = devo_total*100), binwidth = 10) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Total percent developed cover within 3000m of CC sites',
+    x = 'Total Developed Cover (%)',
+    y = 'Count')
+
+ggplot(combined_data) +
+  geom_histogram(aes(x = forest_total*100), binwidth = 10) +
+  facet_wrap(~Year) +
+  labs(
+    title = 'Total percent forest cover within 3000m of CC sites',
+    x = 'Total Forest Cover (%)',
+    y = 'Count')
+
+
+```
+
+
+Next steps: 
+1. Map CC sites by LSM and land cover statistics.
+2. Compare and look for correlations in land cover and LSM data across the different scales.
+3. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
