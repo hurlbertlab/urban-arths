@@ -1,0 +1,132 @@
+---
+title: "Autocorrelation Assessment"
+author: "Indigo Edwards"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+
+cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
+  filter(
+    Name != 'Example Site',
+    Latitude < 50)
+
+lsm_500m <- read_csv('data/processed/lsm_metrics_500m.csv')
+
+lsm_1000m <- read_csv('data/processed/lsm_metrics_1000m.csv')
+
+lsm_3000m <- read_csv('data/processed/lsm_metrics_3000m.csv')
+
+lsm_5000m <- read_csv('data/processed/lsm_metrics_5000m.csv')
+
+lsm_10000m <- read_csv('data/processed/lsm_metrics_10000m.csv')
+
+pc_500m <- read_csv('data/processed/percent_cover_500m.csv')
+
+pc_1000m <- read_csv('data/processed/percent_cover_1000m.csv')
+
+pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
+
+pc_5000m <- read_csv('data/processed/percent_cover_5000m.csv')
+
+pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
+
+```
+
+## Autocorrelation between landscape characteristics
+
+The first place I want to look for correlation is between forest cover and other variables.
+
+```{r forest devo correlation}
+
+forest_corr_data <- cc_sites %>% 
+  select(SiteID = ID) %>% 
+  right_join(
+    cc_plants %>% select(PlantID = ID, SiteFK),
+    by = c('SiteID' = 'SiteFK')) %>% 
+  right_join(
+    cc_surveys %>% 
+      select(surveyID = ID, PlantFK, LocalDate),
+    by = c('PlantID' = 'PlantFK')) %>% 
+  select(SiteID, LocalDate) %>% 
+  distinct() %>% 
+  mutate(Year = year(LocalDate)) %>% 
+  group_by(SiteID, Year) %>% 
+  summarize(survey_dates = n()) %>% 
+  ungroup() %>% 
+  left_join(
+    cc_sites %>% 
+      select(SiteID = ID, Name, Latitude, Longitude, Region),
+    by = 'SiteID') %>% 
+  relocate(SiteID, Name, Year, survey_dates, Region, Latitude, Longitude) %>%
+  left_join(
+    pc_3000m %>% 
+      rowwise() %>% 
+      mutate(
+        devo_total = devo_open + devo_low + devo_med + devo_high,
+        forest_total = forest_decid + forest_everg + forest_mix),
+    by = c('SiteID' = 'siteID', 'Name')) %>% 
+  left_join(lsm_3000m, by = c('SiteID' = 'siteID', 'Name')) %>% 
+  filter(
+    Year %in% 2018:2021,
+    survey_dates >= 10) %>% 
+  filter(!is.na(Name)) %>% 
+  select(-Year) %>% 
+  group_by(Name) %>% 
+  mutate(survey_dates = sum(survey_dates)) %>% 
+  distinct()
+
+lm(devo_total ~ forest_total, data = forest_corr_data) %>% 
+  summary()
+
+lm(area_mn ~ forest_total, data = forest_corr_data) %>% 
+  summary()
+
+lm(shape_mn ~ forest_total, data = forest_corr_data) %>% 
+  summary()
+
+lm(contig_mn ~ forest_total, data = forest_corr_data) %>% 
+  summary()
+
+lm(enn_mn ~ forest_total, data = forest_corr_data) %>% 
+  summary()
+
+```
+
+
+Percent forest cover shows pretty significant correlation with developed cover, patch area, shape index, contiguity index and nearest-neighbor distance. It may be worth investigating if the LSM variables are correlated with developed cover, as well, given the strong correlation between developed and forested cover.
+
+## Correlation across buffer distances
+
+I also want to check out the level of correlation in landscape characteristics across different buffer scales.
+
+```{r buffer distance correlation}
+
+map(
+  list(pc_500m, pc_1000m, pc_3000m, pc_5000m, pc_10000m),
+  function(x){
+    
+    x %>% 
+      rowwise() %>% 
+      mutate(
+        devo_total = devo_open + devo_low + devo_med + devo_high,
+        forest_total = forest_decid + forest_everg + forest_mix)
+    
+  }
+) %>% set_names('pc_500m_sums', 'pc_1000m_sums', 'pc_3000m_sums', 'pc_5000m_sums', 'pc_10000m_sums') %>% 
+  list2env(envir = .GlobalEnv)
+
+```
+
+Next steps: 
+
+1. Compare and look for correlations in land cover and LSM data across the different scales.
+
+2. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?

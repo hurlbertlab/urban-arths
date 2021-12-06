@@ -213,8 +213,91 @@ ggplot(combined_data) +
 
 ```
 
+## Mapping CC sites by landscape characteristics
 
-Next steps: 
-1. Map CC sites by LSM and land cover statistics.
-2. Compare and look for correlations in land cover and LSM data across the different scales.
-3. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
+To get a sense of the geographic distribution of sites with different landscape characteristics, I'm mapping the sites by different statistics, still at the 3000m level. Each map includes all the sites present in any of the four sampling years to be used (2018-2021).
+
+Log-transforming mean patch area largely fixes the skew. Nearest-neighbor distance is still super right-skewed, even after being log-transformed, so we'll need to figure out a different transformation or model to use for that. I have it log-transformed for the map just to make it a little more comprehensible.
+
+```{r mapping by landscape characteristics, echo = F}
+
+map_data <- combined_data %>% 
+  filter(!is.na(Name)) %>% 
+  select(-Year) %>% 
+  group_by(Name) %>% 
+  mutate(survey_dates = sum(survey_dates)) %>% 
+  distinct() %>% 
+  st_as_sf(
+    coords = c('Longitude', 'Latitude'),
+    crs = st_crs(us_map))
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = map_data,
+    mapping = aes(
+      color = devo_total,
+      size = survey_dates)) +
+  theme_void() +
+  labs(
+    title = 'Developed cover and survey coverage at CC sites',
+    color = 'Total Developed Cover',
+    size = 'Total Survey Dates 2018-2020')
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = map_data,
+    mapping = aes(
+      color = log(area_mn),
+      size = survey_dates)) +
+  theme_void() +
+  labs(
+    title = 'Forest patch area and survey coverage at CC sites',
+    color = 'Log mean forest patch area',
+    size = 'Total Survey Dates 2018-2020')
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = map_data,
+    mapping = aes(
+      color = shape_mn,
+      size = survey_dates)) +
+  theme_void() +
+  labs(
+    title = 'Forest patch shape index and survey coverage at CC sites',
+    color = 'Mean forest patch shape index (1+)',
+    size = 'Total Survey Dates 2018-2020')
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = map_data,
+    mapping = aes(
+      color = contig_mn,
+      size = survey_dates)) +
+  theme_void() +
+  labs(
+    title = 'Forest patch contiguity index and survey coverage at CC sites',
+    color = 'Mean Contiguity Index (0-1)',
+    size = 'Total Survey Dates 2018-2020')
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(
+    data = map_data,
+    mapping = aes(
+      color = log(enn_mn),
+      size = survey_dates)) +
+  theme_void() +
+  labs(
+    title = 'Nearest-neighbor distance and survey coverage at CC sites',
+    color = 'Log mean Euclidean Nearest-Neighbor Distance',
+    size = 'Total Survey Dates 2018-2020')
+  
+```
+
+Site location and survey coverage seem to be pretty even across the range of developed cover, patch area, shape index, and contiguity index. It's hard to tell with nearest-neighbor distance, because it's so skewed, but it seems probably it's a decently even distribution across sites.
+
+As expected, we have more coverage in NC than anywhere else, so that's another potential source of bias to keep in mind.
