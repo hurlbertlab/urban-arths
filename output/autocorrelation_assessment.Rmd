@@ -18,6 +18,10 @@ cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>%
     Name != 'Example Site',
     Latitude < 50)
 
+cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv')
+
+cc_surveys <- read_csv('data/raw/2021-11-18_Survey.csv')
+
 lsm_500m <- read_csv('data/processed/lsm_metrics_500m.csv')
 
 lsm_1000m <- read_csv('data/processed/lsm_metrics_1000m.csv')
@@ -44,7 +48,7 @@ pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
 
 The first place I want to look for correlation is between forest cover and other variables.
 
-```{r forest devo correlation}
+```{r forest devo correlation, echo = F}
 
 forest_corr_data <- cc_sites %>% 
   select(SiteID = ID) %>% 
@@ -107,7 +111,7 @@ Percent forest cover shows pretty significant correlation with developed cover, 
 
 I also want to check out the level of correlation in landscape characteristics across different buffer scales.
 
-```{r buffer distance correlation}
+```{r buffer distance correlation, echo = F}
 
 map(
   list(pc_500m, pc_1000m, pc_3000m, pc_5000m, pc_10000m),
@@ -123,10 +127,110 @@ map(
 ) %>% set_names('pc_500m_sums', 'pc_1000m_sums', 'pc_3000m_sums', 'pc_5000m_sums', 'pc_10000m_sums') %>% 
   list2env(envir = .GlobalEnv)
 
+pc_buffer_sums <- pc_500m_sums %>% 
+  select(-Name) %>% 
+  rename_with(~str_c(., '500m', sep = '_'), .cols = ends_with('total')) %>% 
+  full_join(
+    pc_1000m_sums %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '1000m', sep = '_'), .cols = ends_with('total')),
+    by = 'siteID') %>% 
+  full_join(
+    pc_3000m_sums %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '3000m', sep = '_'), .cols = ends_with('total')),
+    by = 'siteID') %>% 
+  full_join(
+    pc_5000m_sums %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '5000m', sep = '_'), .cols = ends_with('total')),
+    by = 'siteID') %>% 
+  full_join(
+    pc_10000m_sums %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '10000m', sep = '_'), .cols = ends_with('total')),
+    by = 'siteID')
+
+lsm_buffers <- lsm_500m %>% 
+  select(-Name) %>% 
+  rename_with(~str_c(., '500m', sep = '_'), .cols = ends_with('mn')) %>% 
+  full_join(
+    lsm_1000m %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '1000m', sep = '_'), .cols = ends_with('mn')),
+    by = 'siteID') %>% 
+  full_join(
+    lsm_3000m %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '3000m', sep = '_'), .cols = ends_with('mn')),
+    by = 'siteID') %>% 
+  full_join(
+    lsm_5000m %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '5000m', sep = '_'), .cols = ends_with('mn')),
+    by = 'siteID') %>% 
+  full_join(
+    lsm_10000m %>% 
+      select(-Name) %>% 
+      rename_with(~str_c(., '10000m', sep = '_'), .cols = ends_with('mn')),
+    by = 'siteID')
+
+lm(devo_total_10000m ~
+     devo_total_5000m +
+     devo_total_3000m +
+     devo_total_1000m +
+     devo_total_500m,
+   data = pc_buffer_sums) %>% 
+  summary()
+
+lm(forest_total_10000m ~
+     forest_total_5000m +
+     forest_total_3000m +
+     forest_total_1000m +
+     forest_total_500m,
+   data = pc_buffer_sums) %>% 
+  summary()
+
+lm(area_mn_10000m ~
+     area_mn_5000m +
+     area_mn_3000m +
+     area_mn_1000m +
+     area_mn_500m,
+   data = lsm_buffers) %>% 
+  summary()
+
+lm(shape_mn_10000m ~
+     shape_mn_5000m +
+     shape_mn_3000m +
+     shape_mn_1000m +
+     shape_mn_500m,
+   data = lsm_buffers) %>% 
+  summary()
+
+lm(contig_mn_10000m ~
+     contig_mn_5000m +
+     contig_mn_3000m +
+     contig_mn_1000m +
+     contig_mn_500m,
+   data = lsm_buffers) %>% 
+  summary()
+
+lm(enn_mn_10000m ~
+     enn_mn_5000m +
+     enn_mn_3000m +
+     enn_mn_1000m +
+     enn_mn_500m,
+   data = lsm_buffers) %>% 
+  summary()
+
 ```
+
+For both percent cover statistics, there's only a significant correlation to the 10km data at the 5km and 3km scales, and in both cases, the relationship is negative at th 3km scale. Weird.
+
+All of the LSM statistics show a correlation to the 10km data at the 5000m level, and nearest-neighbor shows a correlation at the 3000m level as well, which, like the percent cover data, is negative. Also weird.
+
+It does seem worth looking at these statistics at both the local and landscape levels, given that the two are distinctly different. The 1km scale may be more reasonable to use than the 500m scale, given that LSM metrics can't be calculated at 500m for a lot of CC sites, but it's worth looking into comparisons between local and landscape level analyses for reference buffer sizes.
 
 Next steps: 
 
-1. Compare and look for correlations in land cover and LSM data across the different scales.
-
-2. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
+1. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
