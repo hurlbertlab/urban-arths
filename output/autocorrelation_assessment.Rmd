@@ -12,6 +12,7 @@ library(tidyverse)
 library(ggplot2)
 library(lubridate)
 library(stringr)
+library(corrplot)
 
 cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
@@ -44,192 +45,38 @@ pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
 
 ```
 
-## Autocorrelation between landscape characteristics
 
-The first place I want to look for correlation is between forest cover and other variables.
+```{r correlation, echo = F}
 
-```{r forest devo correlation, echo = F}
-
-forest_corr_data <- cc_sites %>% 
-  select(SiteID = ID) %>% 
-  right_join(
-    cc_plants %>% select(PlantID = ID, SiteFK),
-    by = c('SiteID' = 'SiteFK')) %>% 
-  right_join(
-    cc_surveys %>% 
-      select(surveyID = ID, PlantFK, LocalDate),
-    by = c('PlantID' = 'PlantFK')) %>% 
-  select(SiteID, LocalDate) %>% 
-  distinct() %>% 
-  mutate(Year = year(LocalDate)) %>% 
-  group_by(SiteID, Year) %>% 
-  summarize(survey_dates = n()) %>% 
-  ungroup() %>% 
-  left_join(
-    cc_sites %>% 
-      select(SiteID = ID, Name, Latitude, Longitude, Region),
-    by = 'SiteID') %>% 
-  relocate(SiteID, Name, Year, survey_dates, Region, Latitude, Longitude) %>%
-  left_join(
-    pc_3000m %>% 
-      rowwise() %>% 
-      mutate(
-        devo_total = devo_open + devo_low + devo_med + devo_high,
-        forest_total = forest_decid + forest_everg + forest_mix),
-    by = c('SiteID' = 'siteID', 'Name')) %>% 
-  left_join(lsm_3000m, by = c('SiteID' = 'siteID', 'Name')) %>% 
-  filter(
-    Year %in% 2018:2021,
-    survey_dates >= 10) %>% 
-  filter(!is.na(Name)) %>% 
-  select(-Year) %>% 
-  group_by(Name) %>% 
-  mutate(survey_dates = sum(survey_dates)) %>% 
-  distinct()
-
-lm(devo_total ~ forest_total, data = forest_corr_data) %>% 
-  summary()
-
-lm(area_mn ~ forest_total, data = forest_corr_data) %>% 
-  summary()
-
-lm(shape_mn ~ forest_total, data = forest_corr_data) %>% 
-  summary()
-
-lm(contig_mn ~ forest_total, data = forest_corr_data) %>% 
-  summary()
-
-lm(enn_mn ~ forest_total, data = forest_corr_data) %>% 
-  summary()
-
-```
-
-
-Percent forest cover shows pretty significant correlation with developed cover, patch area, shape index, contiguity index and nearest-neighbor distance. It may be worth investigating if the LSM variables are correlated with developed cover, as well, given the strong correlation between developed and forested cover.
-
-## Correlation across buffer distances
-
-I also want to check out the level of correlation in landscape characteristics across different buffer scales.
-
-```{r buffer distance correlation, echo = F}
-
-map(
-  list(pc_500m, pc_1000m, pc_3000m, pc_5000m, pc_10000m),
-  function(x){
-    
+mapped_list <- map2(
+  list(
+    pc_500m,pc_1000m,pc_3000m,pc_5000m,pc_10000m,
+    lsm_500m,lsm_1000m,lsm_3000m,lsm_5000m,lsm_10000m),
+  c('500m','1000m','3000m','5000m','10000m',
+    '500m','1000m','3000m','5000m','10000m'),
+  function(x,y){
+   
     x %>% 
-      rowwise() %>% 
-      mutate(
-        devo_total = devo_open + devo_low + devo_med + devo_high,
-        forest_total = forest_decid + forest_everg + forest_mix)
-    
-  }
-) %>% set_names('pc_500m_sums', 'pc_1000m_sums', 'pc_3000m_sums', 'pc_5000m_sums', 'pc_10000m_sums') %>% 
-  list2env(envir = .GlobalEnv)
+      rename_with(~ str_c(., y, sep = '_'), .cols = 3:length(x)) %>% 
+      select(-Name)
+      
+  })
 
-pc_buffer_sums <- pc_500m_sums %>% 
-  select(-Name) %>% 
-  rename_with(~str_c(., '500m', sep = '_'), .cols = ends_with('total')) %>% 
-  full_join(
-    pc_1000m_sums %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '1000m', sep = '_'), .cols = ends_with('total')),
-    by = 'siteID') %>% 
-  full_join(
-    pc_3000m_sums %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '3000m', sep = '_'), .cols = ends_with('total')),
-    by = 'siteID') %>% 
-  full_join(
-    pc_5000m_sums %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '5000m', sep = '_'), .cols = ends_with('total')),
-    by = 'siteID') %>% 
-  full_join(
-    pc_10000m_sums %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '10000m', sep = '_'), .cols = ends_with('total')),
-    by = 'siteID')
-
-lsm_buffers <- lsm_500m %>% 
-  select(-Name) %>% 
-  rename_with(~str_c(., '500m', sep = '_'), .cols = ends_with('mn')) %>% 
-  full_join(
-    lsm_1000m %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '1000m', sep = '_'), .cols = ends_with('mn')),
-    by = 'siteID') %>% 
-  full_join(
-    lsm_3000m %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '3000m', sep = '_'), .cols = ends_with('mn')),
-    by = 'siteID') %>% 
-  full_join(
-    lsm_5000m %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '5000m', sep = '_'), .cols = ends_with('mn')),
-    by = 'siteID') %>% 
-  full_join(
-    lsm_10000m %>% 
-      select(-Name) %>% 
-      rename_with(~str_c(., '10000m', sep = '_'), .cols = ends_with('mn')),
-    by = 'siteID')
-
-lm(devo_total_10000m ~
-     devo_total_5000m +
-     devo_total_3000m +
-     devo_total_1000m +
-     devo_total_500m,
-   data = pc_buffer_sums) %>% 
-  summary()
-
-lm(forest_total_10000m ~
-     forest_total_5000m +
-     forest_total_3000m +
-     forest_total_1000m +
-     forest_total_500m,
-   data = pc_buffer_sums) %>% 
-  summary()
-
-lm(area_mn_10000m ~
-     area_mn_5000m +
-     area_mn_3000m +
-     area_mn_1000m +
-     area_mn_500m,
-   data = lsm_buffers) %>% 
-  summary()
-
-lm(shape_mn_10000m ~
-     shape_mn_5000m +
-     shape_mn_3000m +
-     shape_mn_1000m +
-     shape_mn_500m,
-   data = lsm_buffers) %>% 
-  summary()
-
-lm(contig_mn_10000m ~
-     contig_mn_5000m +
-     contig_mn_3000m +
-     contig_mn_1000m +
-     contig_mn_500m,
-   data = lsm_buffers) %>% 
-  summary()
-
-lm(enn_mn_10000m ~
-     enn_mn_5000m +
-     enn_mn_3000m +
-     enn_mn_1000m +
-     enn_mn_500m,
-   data = lsm_buffers) %>% 
-  summary()
+mapped_list[[1]] %>% 
+  full_join(mapped_list[[2]]) %>% 
+  full_join(mapped_list[[3]]) %>% 
+  full_join(mapped_list[[4]]) %>% 
+  full_join(mapped_list[[5]]) %>% 
+  full_join(mapped_list[[6]]) %>% 
+  full_join(mapped_list[[7]]) %>% 
+  full_join(mapped_list[[8]]) %>% 
+  full_join(mapped_list[[9]]) %>% 
+  full_join(mapped_list[[10]]) %>%
+  cor(use = 'complete.obs') %>%
+  corrplot(method = 'color')
 
 ```
 
-For both percent cover statistics, there's only a significant correlation to the 10km data at the 5km and 3km scales, and in both cases, the relationship is negative at th 3km scale. Weird.
-
-All of the LSM statistics show a correlation to the 10km data at the 5000m level, and nearest-neighbor shows a correlation at the 3000m level as well, which, like the percent cover data, is negative. Also weird.
-
-It does seem worth looking at these statistics at both the local and landscape levels, given that the two are distinctly different. The 1km scale may be more reasonable to use than the 500m scale, given that LSM metrics can't be calculated at 500m for a lot of CC sites, but it's worth looking into comparisons between local and landscape level analyses for reference buffer sizes.
 
 Next steps: 
 
