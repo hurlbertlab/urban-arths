@@ -103,3 +103,19 @@ ggplot(us_map) +
   facet_wrap(~Year) +
   theme_void()
 
+
+# statistic extraction ----------------------------------------------------
+
+survey_counts %>% 
+  filter(!is.na(Name), survey_dates >= 10, Year == 2018) %>% 
+  select(SiteID) %>% 
+  rename(SiteFK = SiteID) %>% 
+  left_join(cc_plants, by = 'SiteFK') %>% 
+  rename(PlantFK = ID) %>% 
+  left_join(cc_surveys, by = 'PlantFK') %>% 
+  rename(SurveyFK = ID) %>% 
+  filter(year(LocalDate) == 2018) %>% 
+  left_join(cc_arths, by = 'SurveyFK') %>% 
+  drop_na(UpdatedGroup) %>% 
+  ggplot() +
+  geom_bar(aes(UpdatedGroup))
