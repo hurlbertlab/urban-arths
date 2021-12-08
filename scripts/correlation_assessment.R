@@ -1,12 +1,5 @@
----
-title: "Autocorrelation Assessment"
-author: "Indigo Edwards"
-date: "12/6/2021"
-output: html_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# setup -------------------------------------------------------------------
 
 library(tidyverse)
 library(ggplot2)
@@ -43,10 +36,8 @@ pc_5000m <- read_csv('data/processed/percent_cover_5000m.csv')
 
 pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
 
-```
 
-
-```{r correlation, echo = F}
+# plot correlation matrix ----------------------------------------
 
 mapped_list <- map2(
   list(
@@ -55,14 +46,14 @@ mapped_list <- map2(
   c('500m','1000m','3000m','5000m','10000m',
     '500m','1000m','3000m','5000m','10000m'),
   function(x,y){
-   
+    
     x %>% 
       rename_with(~ str_c(., y, sep = '_'), .cols = 3:length(x)) %>% 
       select(-Name)
-      
+    
   })
 
-mapped_list[[1]] %>% 
+combined_data <- mapped_list[[1]] %>% 
   full_join(mapped_list[[2]]) %>% 
   full_join(mapped_list[[3]]) %>% 
   full_join(mapped_list[[4]]) %>% 
@@ -71,15 +62,32 @@ mapped_list[[1]] %>%
   full_join(mapped_list[[7]]) %>% 
   full_join(mapped_list[[8]]) %>% 
   full_join(mapped_list[[9]]) %>% 
-  full_join(mapped_list[[10]]) %>%
+  full_join(mapped_list[[10]])
+
+pMatrix <- function(mat, ...){
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat<- matrix(NA, n, n)
+  diag(p.mat) <- 0
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      tmp <- cor.test(mat[, i], mat[, j], ...)
+      p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+    }
+  }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+p_vals <- pMatrix(combined_data)
+
+combined_data %>% 
   cor(use = 'complete.obs') %>%
-  corrplot(method = 'color')
-
-```
-
-
-Next steps: 
-
-1. Run correlation matrix.
-
-2. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
+  corrplot(
+    method = 'color',
+    type = 'upper',
+    tl.col = 'black',
+    tl.cex = 0.6,
+    p.mat = p_vals,
+    sig.level = 0.01,
+    insig = 'blank')
