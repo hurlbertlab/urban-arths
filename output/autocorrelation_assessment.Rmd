@@ -233,4 +233,6 @@ It does seem worth looking at these statistics at both the local and landscape l
 
 Next steps: 
 
-1. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?
+1. Run correlation matrix.
+
+2. Start assessing correlations between landscape statistics and CC data - what CC statistics do we want to start with?

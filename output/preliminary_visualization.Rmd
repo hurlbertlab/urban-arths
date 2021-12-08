@@ -40,7 +40,7 @@ pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
 
 ## Reviewing Caterpillars Count! survey data
 
-I'm starting by calculating the number of survey dates at each site in each year. Do we want to assess site usability based on the number of survey dates, or the number of total surveys?
+I'm starting by calculating the number of survey dates at each site in each year. I'll adjust for dates with 10+ branches.
 
 ```{r survey date counts, echo = F, message = F}
 
@@ -68,8 +68,6 @@ survey_counts <- cc_sites %>%
 head(survey_counts) %>% knitr::kable(digits = 2)
 
 ```
-
-Sites 2 and 258 don't exist in our sites data file. What are they?
 
 Let's look at how many sites had 10 or more surveys each year. I think it would be smart to conduct a power analysis before starting serious analysis, but we'll have to think about whether that would be based on the number of survey dates or the number of total surveys. It probably depends on whether we'd be considering samples as a single survey or a single survey date - survey date seems like it makes more sense.
 
