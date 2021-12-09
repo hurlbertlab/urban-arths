@@ -7,15 +7,6 @@ library(lubridate)
 library(stringr)
 library(corrplot)
 
-cc_sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
-  filter(
-    Name != 'Example Site',
-    Latitude < 50)
-
-cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv')
-
-cc_surveys <- read_csv('data/raw/2021-11-18_Survey.csv')
-
 lsm_500m <- read_csv('data/processed/lsm_metrics_500m.csv')
 
 lsm_1000m <- read_csv('data/processed/lsm_metrics_1000m.csv')
@@ -39,9 +30,26 @@ pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
 
 # plot correlation matrix ----------------------------------------
 
+map(
+  list(pc_500m,pc_1000m,pc_3000m,pc_5000m,pc_10000m),
+  function(x){
+   
+    x %>% 
+      rowwise() %>% 
+      mutate(
+        devo_lo = devo_open + devo_low,
+        devo_hi = devo_med + devo_high,
+        forest_total = forest_decid + forest_everg + forest_mix) %>% 
+      select(siteID, Name, devo_lo, devo_hi, forest_total)
+      
+  }) %>% 
+  set_names(
+    c('pc_500m_2', 'pc_1000m_2', 'pc_3000m_2', 'pc_5000m_2', 'pc_10000m_2')) %>% 
+  list2env(envir = .GlobalEnv)
+
 mapped_list <- map2(
   list(
-    pc_500m,pc_1000m,pc_3000m,pc_5000m,pc_10000m,
+    pc_500m_2,pc_1000m_2,pc_3000m_2,pc_5000m_2,pc_10000m_2,
     lsm_500m,lsm_1000m,lsm_3000m,lsm_5000m,lsm_10000m),
   c('500m','1000m','3000m','5000m','10000m',
     '500m','1000m','3000m','5000m','10000m'),
@@ -84,7 +92,7 @@ p_vals <- pMatrix(combined_data)
 combined_data %>% 
   cor(use = 'complete.obs') %>%
   corrplot(
-    method = 'color',
+    method = 'circle',
     type = 'upper',
     tl.col = 'black',
     tl.cex = 0.6,
