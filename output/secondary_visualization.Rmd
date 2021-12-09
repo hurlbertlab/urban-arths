@@ -1,0 +1,84 @@
+---
+title: "Secondary Visualization"
+author: "Indigo Edwards"
+date: "12/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(sf)
+
+cc_full <- read_csv('data/raw/fullCCDataset_2021-12-01.csv')
+
+cc_sites <- read_csv('data/raw/2021-11-18_Site.csv')
+
+us_map <- st_read('data/geographic/states.shp')
+  
+```
+
+I'm generating a table of the number of usable sites based on a certain number of total surveys across all years within 3 weeks of the summer solstice. It's probably worth looking at the abundance over time plots for at least our local sites to see if 3 weeks is reasonable.
+
+```{r usable surveys, echo = F}
+
+cc_full %>% 
+  filter(Year%in% 2018:2021) %>% 
+  mutate(
+    solstice_jday = if_else(
+      Year %in% c(2018,2019),
+      true = 172,
+      false = 171)) %>% 
+  filter(abs(solstice_jday - julianday) <= 21) %>% 
+  group_by(SiteFK) %>% 
+  summarize(n_surveys = length(unique(ID))) %>%
+  summarize(
+    '50' = length(which(n_surveys >= 50)),
+    '75' = length(which(n_surveys >= 75)),
+    '100' = length(which(n_surveys >= 100)),
+    '150' = length(which(n_surveys >= 150))) %>% 
+  pivot_longer(
+    cols = 1:4,
+    names_to = 'min_surveys',
+    values_to = 'n_sites') %>% 
+  knitr::kable(col.names = c('Minimum Total Surveys', 'Number of Sites'))
+  
+```
+
+For the sake of visualization, we'll use a minimum of 100 surveys.
+
+```{r mapping, echo = F}
+cc_100 <- cc_full %>% 
+  filter(Year%in% 2018:2021) %>% 
+  mutate(
+    solstice_jday = if_else(
+      Year %in% c(2018,2019),
+      true = 172,
+      false = 171)) %>% 
+  filter(abs(solstice_jday - julianday) <= 21) %>% 
+  group_by(SiteFK) %>% 
+  summarize(n_surveys = length(unique(ID))) %>%
+  filter(n_surveys >= 100) %>% 
+  left_join(cc_sites, by = c('SiteFK' = 'ID')) %>% 
+  st_as_sf(
+    coords = c('Longitude', 'Latitude'),
+    crs = st_crs(us_map))
+
+ggplot(us_map) +
+  geom_sf() +
+  geom_sf(data = cc_100, mapping = aes(color = n_surveys)) +
+  theme_void() +
+  scale_fill_gradientn(
+    colours = c('#1E90FF','#0C56BC','#00308F'), 
+    values = rescale(c(100,500,4000)),
+    guide = "colorbar", limits=c(100,4500)) +
+  labs(color = ')
+  
+```
+
+Next steps:
+
+1. Look at solstice date on abundance curves to assess sampling time period validity.
