@@ -71,11 +71,12 @@ ggplot(us_map) +
   geom_sf() +
   geom_sf(data = cc_100, mapping = aes(color = n_surveys)) +
   theme_void() +
-  scale_fill_gradientn(
-    colours = c('#1E90FF','#0C56BC','#00308F'), 
-    values = rescale(c(100,500,4000)),
-    guide = "colorbar", limits=c(100,4500)) +
-  labs(color = ')
+  scale_color_gradient2(
+    low = 'purple',
+    mid = 'blue',
+    high = 'green', 
+    midpoint = 1000) +
+  labs(color = 'Total Number of Surveys 2018-2021')
   
 ```
 
