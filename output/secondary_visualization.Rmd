@@ -21,7 +21,7 @@ us_map <- st_read('data/geographic/states.shp')
   
 ```
 
-I'm generating a table of the number of usable sites based on a certain number of total surveys across all years within 3 weeks of the summer solstice. It's probably worth looking at the abundance over time plots for at least our local sites to see if 3 weeks is reasonable.
+I'm generating a table of the number of usable sites based on a certain number of total surveys across all years within 3 weeks of the summer solstice.
 
 ```{r usable surveys, echo = F}
 
@@ -45,6 +45,39 @@ cc_full %>%
     names_to = 'min_surveys',
     values_to = 'n_sites') %>% 
   knitr::kable(col.names = c('Minimum Total Surveys', 'Number of Sites'))
+
+cc_full %>% 
+  filter(Year%in% 2018:2021) %>% 
+  mutate(
+    solstice_jday = if_else(
+      Year %in% c(2018,2019),
+      true = 172,
+      false = 171)) %>% 
+  mutate(
+    dfs = abs(solstice_jday - julianday),
+    wfs = case_when(
+      dfs >= 28 ~ 5,
+      dfs %in% 21:27 ~ 4,
+      dfs %in% 15:20 ~ 3,
+      dfs %in% 8:14 ~ 2,
+      dfs < 8 ~ 1)) %>% 
+  group_by(SiteFK, wfs) %>% 
+  summarize(n_surveys = length(unique(ID))) %>%
+  group_by(wfs) %>% 
+  summarize(
+    '50' = length(which(n_surveys >= 50)),
+    '75' = length(which(n_surveys >= 75)),
+    '100' = length(which(n_surveys >= 100)),
+    '150' = length(which(n_surveys >= 150))) %>% 
+  slice(1:4) %>% 
+  pivot_longer(
+    cols = 2:5,
+    names_to = 'min_surveys',
+    values_to = 'n_sites') %>% 
+  knitr::kable(col.names = c(
+    'Weeks from Solstice',
+    'Minimum Total Surveys',
+    'Number of Sites'))
   
 ```
 
@@ -80,6 +113,58 @@ ggplot(us_map) +
   
 ```
 
+I'm going to visualize where the solstice falls on abundance curves over each summer.
+
+```{r abundance curves, echo = F, message = F}
+
+rect_df <- tibble(
+  Year = rep(2018:2021,3),
+  weeks = factor(c(
+    rep(2,4),
+    rep(3,4),
+    rep(4,4))),
+  xmin = c(
+    158,158,157,157,
+    151,151,150,150,
+    143,143,142,142),
+  xmax = c(
+    186,186,185,185,
+    193,193,192,192,
+    200,200,199,199),
+  ymin = rep(0,12),
+  ymax = rep(Inf,12))
+
+cc_full %>% 
+  filter(Year%in% 2018:2021) %>% 
+  mutate(
+    solstice_jday = if_else(
+      Year %in% c(2018,2019),
+      true = 172,
+      false = 171)) %>% 
+  mutate(arths = if_else(is.na(arthID),0,1)) %>% 
+  group_by(SiteFK, Year, julianday, solstice_jday) %>% 
+  summarize(abundance = sum(arths)) %>% 
+  ggplot() +
+  geom_line(aes(x = julianday, y = abundance, group = factor(SiteFK))) +
+  facet_wrap(~Year, scales = 'free') +
+  geom_vline(aes(xintercept = solstice_jday), color = 'red') +
+  geom_rect(
+    data = rect_df,
+    mapping = aes(
+      xmin = xmin,
+      xmax = xmax,
+      ymin = ymin,
+      ymax = ymax,
+      fill = weeks),
+    alpha = .4) +
+  labs(
+    color = 'Number of Weeks from Solstice',
+    x = 'Julian Day',
+    y = 'Number of Arthropods Observed',
+    title = 'Abundance Curves with Solstice-Centered Sampling Periods')
+
+```
+
 Next steps:
 
-1. Look at solstice date on abundance curves to assess sampling time period validity.
+1. Correct table of values to be all surveys within x or fewer weeks of solstice.
