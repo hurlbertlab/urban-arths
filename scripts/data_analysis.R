@@ -25,12 +25,23 @@ charMode <- function(x){
 abundance_frame <- cc_full %>% 
   filter(
     Year %in% 2018:2021,
-    ObservationMethod == 'Beat sheet') %>% 
+    ObservationMethod == 'Beat sheet',
+    Length < 150) %>% 
+  mutate(
+    solstice_jday = if_else(
+      Year %in% c(2018,2019),
+      true = 172,
+      false = 171)) %>% 
+  filter(abs(solstice_jday - julianday) <= 27) %>% 
   mutate(arthID = if_else(is.na(arthID), 0, arthID)) %>%
   group_by(SiteFK, ID) %>% 
   summarize(
     total_arths = sum(Quantity),
     total_biomass = sum(Biomass_mg)) %>% 
+  group_by(SiteFK) %>% 
+  summarize(
+    mean_arths = mean(total_arths),
+    mean_biomass = mean(total_biomass)) %>% 
   left_join(
     cc_full %>% 
       filter(
@@ -81,3 +92,27 @@ abundance_frame <- cc_full %>%
             .cols = 2:4),
         by = 'siteID'),
     by = c('SiteFK' = 'siteID'))
+
+abundance_frame %>% 
+  ggplot() +
+  geom_point(aes(
+    x = log(area_mn_500m),
+    y = mean_biomass))
+
+abundance_frame %>% 
+  ggplot() +
+  geom_point(aes(
+    x = log(area_mn_500m),
+    y = mean_arths))
+
+abundance_frame %>% 
+  ggplot() +
+  geom_point(aes(
+    x = log(area_mn_2000m),
+    y = mean_biomass))
+
+abundance_frame %>% 
+  ggplot() +
+  geom_point(aes(
+    x = log(area_mn_2000m),
+    y = mean_arths))
