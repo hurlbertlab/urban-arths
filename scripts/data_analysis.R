@@ -137,4 +137,5 @@ abundance_frames <- map(
         lsm,
         by = c('SiteFK' = 'siteID'))
   }) %>% 
-  set_names(c('visuals_frame', 'beats_frame', 'full_frame'))
+  set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
+  list2env(.GlobalEnv)
