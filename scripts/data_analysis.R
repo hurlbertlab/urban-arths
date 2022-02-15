@@ -112,16 +112,58 @@ abundance_frames <- map(
           Year %in% c(2018,2019),
           true = 172,
           false = 171)) %>% 
-      filter(abs(solstice_jday - julianday) <= 14) %>% 
-      mutate(arthID = if_else(is.na(arthID), 0, arthID)) %>%
+      filter(abs(solstice_jday - julianday) <= 14) %>%
       group_by(SiteFK, ID) %>% 
       summarize(
         total_arths = sum(Quantity),
-        total_biomass = sum(Biomass_mg)) %>% 
+        total_biomass = sum(Biomass_mg),
+        spiders_biomass = sum(Biomass_mg[Group == 'spider']),
+        spiders_present = Group == 'spider',
+        beetles_biomass = sum(Biomass_mg[Group == 'beetle']),
+        beetles_present = Group == 'beetle',
+        cats_biomass = sum(Biomass_mg[Group == 'caterpillar']),
+        cats_present = Group == 'caterpillar',
+        hoppers_biomass = sum(Biomass_mg[Group == 'leafhopper']),
+        hoppers_present = Group == 'leafhopper',
+        truebugs_biomass = sum(Biomass_mg[Group == 'truebugs']),
+        truebugs_present = Group == 'truebugs') %>% 
+      mutate(
+        spiders_biomass = if_else(
+          is.na(spiders_biomass),
+          0,
+          spiders_biomass),
+        beetles_biomass = if_else(
+          is.na(beetles_biomass),
+          0,
+          beetles_biomass),
+        cats_biomass = if_else(
+          is.na(cats_biomass),
+          0,
+          cats_biomass),
+        hoppers_biomass = if_else(
+          is.na(hoppers_biomass),
+          0,
+          hoppers_biomass),
+        truebugs_biomass = if_else(
+          is.na(truebugs_biomass),
+          0,
+          truebugs_biomass)) %>% 
       group_by(SiteFK) %>% 
       summarize(
         mean_arths = mean(total_arths),
-        mean_biomass = mean(total_biomass)) %>% 
+        mean_biomass = mean(total_biomass),
+        # mean biomass of spiders per survey
+        mean_spiders = mean(spiders_biomass),
+        # percent of surveys where spiders were present
+        percent_spiders = 100*sum(spiders_present, na.rm = T)/length(spiders_present),
+        mean_beetles = mean(beetles_biomass),
+        percent_beetles = 100*sum(beetles_present, na.rm = T)/length(beetles_present),
+        mean_cats = mean(cats_biomass),
+        percent_cats = 100*sum(cats_present, na.rm = T)/length(cats_present),
+        mean_hoppers = mean(hoppers_biomass),
+        percent_hoppers = 100*sum(hoppers_present, na.rm = T)/length(hoppers_present),
+        mean_truebugs = mean(truebugs_biomass),
+        percent_truebugs = 100*sum(truebugs_present, na.rm = T)/length(truebugs_present)) %>% 
       left_join(
         dominant_species,
         by = 'SiteFK') %>% 
@@ -139,3 +181,8 @@ abundance_frames <- map(
   }) %>% 
   set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
   list2env(.GlobalEnv)
+
+# sites missing data - check longleaf code
+cc_full$SiteFK[cc_full$SiteFK %in% visuals_frame$SiteFK[is.na(visuals_frame$enn_mn_5000m)]] %>% unique()
+
+cc_full$Name[cc_full$SiteFK %in% visuals_frame$SiteFK[is.na(visuals_frame$enn_mn_5000m)]] %>% unique()
