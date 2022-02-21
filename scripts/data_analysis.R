@@ -5,6 +5,8 @@ library(tidyverse)
 
 cc_full <- read_csv('data/raw/fullCCDataset_2021-12-01.csv')
 
+sites <- read_csv('data/raw/2021-11-18_Site.csv')
+
 lsm_500 <- read_csv('data/processed/lsm_metrics_500m.csv')
 
 pc_500 <- read_csv('data/processed/percent_cover_500m.csv')
@@ -106,7 +108,9 @@ abundance_frames <- map(
     cc_full %>% 
       filter(
         Year %in% 2018:2021,
-        ObservationMethod %in% x) %>% 
+        ObservationMethod %in% x,
+        !Region %in% c('ON','AB'),
+        SiteFK != 274) %>% 
       mutate(
         solstice_jday = if_else(
           Year %in% c(2018,2019),
@@ -182,7 +186,7 @@ abundance_frames <- map(
   set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
   list2env(.GlobalEnv)
 
-# sites missing data - check longleaf code
-cc_full$SiteFK[cc_full$SiteFK %in% visuals_frame$SiteFK[is.na(visuals_frame$enn_mn_5000m)]] %>% unique()
-
-cc_full$Name[cc_full$SiteFK %in% visuals_frame$SiteFK[is.na(visuals_frame$enn_mn_5000m)]] %>% unique()
+# next steps
+## model strength of responses to each landscape scale to select for final models
+## set up initial models with each response variable (mean_arths:percent_truebugs) across sampling types (visual, beat sheet, both)
+## pull environmental data to use in models
