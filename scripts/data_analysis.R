@@ -3,6 +3,8 @@
 
 library(tidyverse)
 
+library(lme4)
+
 cc_full <- read_csv('data/raw/fullCCDataset_2021-12-01.csv')
 
 sites <- read_csv('data/raw/2021-11-18_Site.csv')
@@ -185,6 +187,20 @@ abundance_frames <- map(
   }) %>% 
   set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
   list2env(.GlobalEnv)
+
+# scale assessment
+
+ft_scale_mod <- lm(
+  percent_truebugs ~ forest_total_500m + forest_total_2000m + forest_total_3000m + forest_total_5000m,
+  data = visuals_frame)
+
+summary(ft_scale_mod)
+
+am_scale_mod <- lm(
+  percent_truebugs ~ area_mn_500m + area_mn_2000m + area_mn_3000m + area_mn_5000m,
+  data = visuals_frame)
+
+summary(am_scale_mod)
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
