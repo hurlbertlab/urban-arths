@@ -36,11 +36,8 @@ map(
    
     x %>% 
       rowwise() %>% 
-      mutate(
-        devo_lo = devo_open + devo_low,
-        devo_hi = devo_med + devo_high,
-        forest_total = forest_decid + forest_everg + forest_mix) %>% 
-      select(siteID, Name, devo_lo, devo_hi, forest_total)
+      mutate(forest_total = forest_decid + forest_everg + forest_mix) %>% 
+      select(siteID, Name, forest_total)
       
   }) %>% 
   set_names(

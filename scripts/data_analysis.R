@@ -197,10 +197,28 @@ ft_scale_mod <- lm(
 summary(ft_scale_mod)
 
 am_scale_mod <- lm(
-  percent_truebugs ~ area_mn_500m + area_mn_2000m + area_mn_3000m + area_mn_5000m,
+  mean_beetles ~ area_mn_500m + area_mn_2000m + area_mn_3000m + area_mn_5000m,
   data = visuals_frame)
 
 summary(am_scale_mod)
+
+sm_scale_mod <- lm(
+  percent_truebugs ~ shape_mn_500m + shape_mn_2000m + shape_mn_3000m + shape_mn_5000m,
+  data = visuals_frame)
+
+summary(sm_scale_mod)
+
+cm_scale_mod <- lm(
+  percent_truebugs ~ contig_mn_500m + contig_mn_2000m + contig_mn_3000m + contig_mn_5000m,
+  data = visuals_frame)
+
+summary(cm_scale_mod)
+
+em_scale_mod <- lm(
+  mean_truebugs ~ enn_mn_500m + enn_mn_2000m + enn_mn_3000m + enn_mn_5000m,
+  data = visuals_frame)
+
+summary(em_scale_mod)
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
