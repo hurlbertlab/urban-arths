@@ -224,3 +224,18 @@ summary(em_scale_mod)
 ## model strength of responses to each landscape scale to select for final models
 ## set up initial models with each response variable (mean_arths:percent_truebugs) across sampling types (visual, beat sheet, both)
 ## pull environmental data to use in models
+
+# assessing common catch groups for local beat sheets
+
+cc_full %>% 
+  filter(
+    Name %in% c(
+      'NC State University',
+      'UNC Chapel Hill Campus',
+      'Prairie Ridge Ecostation',
+      'NC Botanical Garden'),
+    Year %in% 2018:2021,
+    ObservationMethod == 'Beat sheet') %>% 
+  group_by(Group) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
