@@ -15,4 +15,4 @@ mass_update <- cleaned_cc %>%
   mutate(Biomass_mg = Quantity*a_constant*Length^b_exponent) %>% 
   select(ID:actionTaken)
 
-write.csv(mass_update, str_c('data/processed/cleaned_cc_', as.character(lubridate::today()), '.csv'))
+write.csv(mass_update, str_c('data/processed/cleaned_cc_', as.character(lubridate::today()), '.csv'), row.names = F)

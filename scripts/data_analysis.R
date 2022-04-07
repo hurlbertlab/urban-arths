@@ -5,28 +5,42 @@ library(tidyverse)
 
 library(lme4)
 
-cc_full <- read_csv('data/raw/fullCCDataset_2021-12-01.csv')
+cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>% 
+  filter(
+    Name != 'Example Site',
+    !Region %in% c('ON','AB','AK'))
 
-sites <- read_csv('data/raw/2021-11-18_Site.csv')
+sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
+  filter(
+    Name != 'Example Site',
+    !Region %in% c('ON','AB','AK'))
 
-lsm_500 <- read_csv('data/processed/lsm_metrics_500m.csv')
+cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv') %>% 
+  filter(!SiteFK %in% c(2,100,106,107,161,205,225,258,273,277,278))
 
-pc_500 <- read_csv('data/processed/percent_cover_500m.csv')
+lsm_500m <- read_csv('data/processed/lsm_500m.csv')
 
-lsm_2000 <- read_csv('data/processed/lsm_metrics_2000m.csv')
+lsm_1km <- read_csv('data/processed/lsm_1km.csv')
 
-pc_2000 <- read_csv('data/processed/percent_cover_2000m.csv')
+lsm_2km <- read_csv('data/processed/lsm_2km.csv')
 
-lsm_5000 <- read_csv('data/processed/lsm_metrics_5000m.csv')
+lsm_3km <- read_csv('data/processed/lsm_3km.csv')
 
-pc_5000 <- read_csv('data/processed/percent_cover_5000m.csv')
+lsm_5km <- read_csv('data/processed/lsm_5km.csv')
 
-lsm_3000 <- read_csv('data/processed/lsm_metrics_3000m.csv')
+lsm_10km <- read_csv('data/processed/lsm_10km.csv')
 
-pc_3000 <- read_csv('data/processed/percent_cover_3000m.csv')
+pc_500m <- read_csv('data/processed/percent_cover_500m.csv')
 
-cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv')
+pc_1km <- read_csv('data/processed/percent_cover_1km.csv')
 
+pc_2km <- read_csv('data/processed/percent_cover_2km.csv')
+
+pc_3km <- read_csv('data/processed/percent_cover_3km.csv')
+
+pc_5km <- read_csv('data/processed/percent_cover_5km.csv')
+
+pc_10km <- read_csv('data/processed/percent_cover_10km.csv')
 
 # data preparation --------------------------------------------------------
 
@@ -49,17 +63,16 @@ lsm_rename <- function(frame, buffer){
   frame %>% 
     rename_with(
       ~ str_c(., buffer),
-      .cols = 3:6)
+      .cols = 2:9)
 }
 
 # combine all lsm measurements and scales into single dataframe
 
 lsm <- map2(
-  list(lsm_500,lsm_2000,lsm_3000,lsm_5000),
-  list('_500m','_2000m','_3000m','_5000m'),
+  list(lsm_500m,lsm_1km,lsm_2km,lsm_3km,lsm_5km,lsm_10km),
+  list('_500m','_1km','_2km','_3km','_5km','_10km'),
   ~ lsm_rename(frame = .x, buffer = .y) %>%
-    select(-Name) %>% 
-    right_join(lsm_5000 %>% select(siteID))) %>% 
+    right_join(lsm_10km %>% select(siteID))) %>% 
   bind_cols() %>% 
   select(-(starts_with('siteID') & !ends_with('...1'))) %>%
   rename(siteID = siteID...1)
@@ -77,32 +90,14 @@ pc_process <- function(frame, buffer){
 }
 
 pc <- map2(
-  list(pc_500,pc_2000,pc_3000,pc_5000),
-  list('_500m','_2000m','_3000m','_5000m'),
+  list(pc_500m,pc_1km,pc_2km,pc_3km,pc_5km,pc_10km),
+  list('_500m','_1km','_2km','_3km','_5km','_10km'),
   ~ pc_process(frame = .x, buffer = .y) %>% 
     select(-siteID)) %>% 
   bind_cols() %>% 
-  cbind(siteID = pc_500$siteID)
+  cbind(siteID = pc_500m$siteID)
 
 # creating dataframes for analysis
-
-cc_full %>% 
-  filter(Year %in% 2018:2021) %>% nrow()
-
-cc_full %>% 
-  filter(
-    Year %in% 2018:2021,
-    ObservationMethod %in% c('Beat sheet', 'Visual')) %>% nrow()
-
-cc_full %>% 
-  filter(
-    Year %in% 2018:2021,
-    ObservationMethod %in% 'Beat sheet') %>% nrow()
-
-cc_full %>% 
-  filter(
-    Year %in% 2018:2021,
-    ObservationMethod %in% 'Visual') %>% nrow()
 
 abundance_frames <- map(
   list('Beat sheet', 'Visual', c('Beat sheet', 'Visual')),
@@ -111,7 +106,7 @@ abundance_frames <- map(
       filter(
         Year %in% 2018:2021,
         ObservationMethod %in% x,
-        !Region %in% c('ON','AB'),
+        !Region %in% c('ON','AB','AK'),
         SiteFK != 274) %>% 
       mutate(
         solstice_jday = if_else(
@@ -190,35 +185,10 @@ abundance_frames <- map(
 
 # scale assessment
 
-ft_scale_mod <- lm(
-  percent_truebugs ~ forest_total_500m + forest_total_2000m + forest_total_3000m + forest_total_5000m,
-  data = visuals_frame)
-
-summary(ft_scale_mod)
-
-am_scale_mod <- lm(
-  mean_beetles ~ area_mn_500m + area_mn_2000m + area_mn_3000m + area_mn_5000m,
-  data = visuals_frame)
-
-summary(am_scale_mod)
-
-sm_scale_mod <- lm(
-  percent_truebugs ~ shape_mn_500m + shape_mn_2000m + shape_mn_3000m + shape_mn_5000m,
-  data = visuals_frame)
-
-summary(sm_scale_mod)
-
-cm_scale_mod <- lm(
-  percent_truebugs ~ contig_mn_500m + contig_mn_2000m + contig_mn_3000m + contig_mn_5000m,
-  data = visuals_frame)
-
-summary(cm_scale_mod)
-
-em_scale_mod <- lm(
-  mean_truebugs ~ enn_mn_500m + enn_mn_2000m + enn_mn_3000m + enn_mn_5000m,
-  data = visuals_frame)
-
-summary(em_scale_mod)
+lm(
+  percent_truebugs ~ forest_total_10km,
+  data = full_frame) %>% 
+  summary()
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
