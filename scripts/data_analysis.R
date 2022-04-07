@@ -8,7 +8,8 @@ library(lme4)
 cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>% 
   filter(
     Name != 'Example Site',
-    !Region %in% c('ON','AB','AK'))
+    !Region %in% c('ON','AB','AK'),
+    status != 'remove')
 
 sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
@@ -116,8 +117,8 @@ abundance_frames <- map(
       filter(abs(solstice_jday - julianday) <= 14) %>%
       group_by(SiteFK, ID) %>% 
       summarize(
-        total_arths = sum(Quantity),
-        total_biomass = sum(Biomass_mg),
+        total_arths = sum(Quantity, na.rm = T),
+        total_biomass = sum(Biomass_mg, na.rm = T),
         spiders_biomass = sum(Biomass_mg[Group == 'spider']),
         spiders_present = Group == 'spider',
         beetles_biomass = sum(Biomass_mg[Group == 'beetle']),
@@ -151,8 +152,8 @@ abundance_frames <- map(
           truebugs_biomass)) %>% 
       group_by(SiteFK) %>% 
       summarize(
-        mean_arths = mean(total_arths),
-        mean_biomass = mean(total_biomass),
+        mean_arths = mean(total_arths, na.rm = T),
+        mean_biomass = mean(total_biomass, na.rm = T),
         # mean biomass of spiders per survey
         mean_spiders = mean(spiders_biomass),
         # percent of surveys where spiders were present
@@ -183,10 +184,18 @@ abundance_frames <- map(
   set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
   list2env(.GlobalEnv)
 
-# scale assessment
+# response normality assessment
+
+ggplot(full_frame) +
+  geom_histogram(aes(x = log(mean_arths + 1)))
+
+ggplot(full_frame) +
+  geom_histogram(aes(x = log(mean_biomass + 1)))
+
+forest_total_corrs
 
 lm(
-  percent_truebugs ~ forest_total_10km,
+  mean_arths ~ area_mn_500m,
   data = full_frame) %>% 
   summary()
 
