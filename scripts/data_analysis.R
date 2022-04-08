@@ -8,8 +8,17 @@ library(lme4)
 cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>% 
   filter(
     Name != 'Example Site',
+    # remove sites outside continental US
     !Region %in% c('ON','AB','AK'),
-    status != 'remove')
+    # remove rows flagged to remove from CC QA/QC
+    status != 'remove') %>% 
+  # functionally convert rows where arths are 1mm to rows where no arths were observed
+  mutate(
+    arthID = ifelse(Length == 1, NA, arthID),
+    Group = ifelse(Length == 1, NA, Group),
+    Length = ifelse(Length == 1, NA, Length),
+    Quantity = ifelse(Length == 1, 0, Quantity),
+    Biomass_mg = ifelse(Length == 1, NA, Biomass_mg))
 
 sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
@@ -17,6 +26,7 @@ sites <- read_csv('data/raw/2021-11-18_Site.csv') %>%
     !Region %in% c('ON','AB','AK'))
 
 cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv') %>% 
+  # filter to sites present in other frames by site ID because Region and Name are absent
   filter(!SiteFK %in% c(2,100,106,107,161,205,225,258,273,277,278))
 
 lsm_500m <- read_csv('data/processed/lsm_500m.csv')
@@ -59,6 +69,7 @@ dominant_species <- cc_plants %>%
   summarize(dom_spp = charMode(Species))
 
 # function to relabel lsm dataframes
+# buffer argument should be formatted as '_*m' or '_*km'
 
 lsm_rename <- function(frame, buffer){
   frame %>% 
@@ -79,6 +90,7 @@ lsm <- map2(
   rename(siteID = siteID...1)
 
 # function to process and rename pc dataframes
+# same buffer format as lsm_rename
 
 pc_process <- function(frame, buffer){
   frame %>% 
@@ -107,8 +119,7 @@ abundance_frames <- map(
       filter(
         Year %in% 2018:2021,
         ObservationMethod %in% x,
-        !Region %in% c('ON','AB','AK'),
-        SiteFK != 274) %>% 
+        !Region %in% c('ON','AB','AK')) %>% 
       mutate(
         solstice_jday = if_else(
           Year %in% c(2018,2019),
@@ -129,43 +140,22 @@ abundance_frames <- map(
         hoppers_present = Group == 'leafhopper',
         truebugs_biomass = sum(Biomass_mg[Group == 'truebugs']),
         truebugs_present = Group == 'truebugs') %>% 
-      mutate(
-        spiders_biomass = if_else(
-          is.na(spiders_biomass),
-          0,
-          spiders_biomass),
-        beetles_biomass = if_else(
-          is.na(beetles_biomass),
-          0,
-          beetles_biomass),
-        cats_biomass = if_else(
-          is.na(cats_biomass),
-          0,
-          cats_biomass),
-        hoppers_biomass = if_else(
-          is.na(hoppers_biomass),
-          0,
-          hoppers_biomass),
-        truebugs_biomass = if_else(
-          is.na(truebugs_biomass),
-          0,
-          truebugs_biomass)) %>% 
       group_by(SiteFK) %>% 
       summarize(
         mean_arths = mean(total_arths, na.rm = T),
         mean_biomass = mean(total_biomass, na.rm = T),
         # mean biomass of spiders per survey
-        mean_spiders = mean(spiders_biomass),
-        # percent of surveys where spiders were present
-        percent_spiders = 100*sum(spiders_present, na.rm = T)/length(spiders_present),
-        mean_beetles = mean(beetles_biomass),
-        percent_beetles = 100*sum(beetles_present, na.rm = T)/length(beetles_present),
-        mean_cats = mean(cats_biomass),
-        percent_cats = 100*sum(cats_present, na.rm = T)/length(cats_present),
-        mean_hoppers = mean(hoppers_biomass),
-        percent_hoppers = 100*sum(hoppers_present, na.rm = T)/length(hoppers_present),
-        mean_truebugs = mean(truebugs_biomass),
-        percent_truebugs = 100*sum(truebugs_present, na.rm = T)/length(truebugs_present)) %>% 
+        mean_spiders = sum(spiders_biomass, na.rm = T)/length(spiders_biomass),
+        # prop of surveys where spiders were present
+        prop_spiders = sum(spiders_present, na.rm = T)/length(spiders_present),
+        mean_beetles = sum(beetles_biomass, na.rm = T)/length(beetles_biomass),
+        prop_beetles = sum(beetles_present, na.rm = T)/length(beetles_present),
+        mean_cats = sum(cats_biomass, na.rm = T)/length(cats_biomass),
+        prop_cats = sum(cats_present, na.rm = T)/length(cats_present),
+        mean_hoppers = sum(hoppers_biomass, na.rm = T)/length(hoppers_biomass),
+        prop_hoppers = sum(hoppers_present, na.rm = T)/length(hoppers_present),
+        mean_truebugs = sum(truebugs_biomass, na.rm = T)/length(truebugs_biomass),
+        prop_truebugs = sum(truebugs_present, na.rm = T)/length(truebugs_present)) %>% 
       left_join(
         dominant_species,
         by = 'SiteFK') %>% 
@@ -186,18 +176,22 @@ abundance_frames <- map(
 
 # response normality assessment
 
-ggplot(full_frame) +
-  geom_histogram(aes(x = log(mean_arths + 1)))
+tibble(
+  forest = full_frame$forest_total_3km[!is.na(full_frame$forest_total_3km)],
+  residuals = 
+    lm(mean_arths ~ forest_total_3km,
+       data = full_frame) %>% 
+    resid()) %>% 
+  ggplot() +
+  geom_point(
+    aes(x = forest, y = residuals)) +
+  geom_hline(yintercept = 0)
 
-ggplot(full_frame) +
-  geom_histogram(aes(x = log(mean_biomass + 1)))
-
-forest_total_corrs
+# correlations
 
 lm(
   mean_arths ~ area_mn_500m,
-  data = full_frame) %>% 
-  summary()
+  data = full_frame)
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
