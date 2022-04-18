@@ -14,11 +14,11 @@ cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>%
     status != 'remove') %>% 
   # functionally convert rows where arths are 1mm to rows where no arths were observed
   mutate(
-    arthID = ifelse(Length == 1, NA, arthID),
-    Group = ifelse(Length == 1, NA, Group),
-    Length = ifelse(Length == 1, NA, Length),
-    Quantity = ifelse(Length == 1, 0, Quantity),
-    Biomass_mg = ifelse(Length == 1, NA, Biomass_mg))
+    arthID = ifelse(Length < 5, NA, arthID),
+    Group = ifelse(Length <5 , NA, Group),
+    Length = ifelse(Length <5 , NA, Length),
+    Quantity = ifelse(Length < 5, 0, Quantity),
+    Biomass_mg = ifelse(Length < 5, NA, Biomass_mg))
 
 sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
@@ -174,24 +174,44 @@ abundance_frames <- map(
   set_names(c('visuals_frame', 'beats_frame', 'full_frame')) %>% 
   list2env(.GlobalEnv)
 
-# response normality assessment
-
-tibble(
-  forest = full_frame$forest_total_3km[!is.na(full_frame$forest_total_3km)],
-  residuals = 
-    lm(mean_arths ~ forest_total_3km,
-       data = full_frame) %>% 
-    resid()) %>% 
-  ggplot() +
-  geom_point(
-    aes(x = forest, y = residuals)) +
-  geom_hline(yintercept = 0)
-
 # correlations
 
-lm(
-  mean_arths ~ area_mn_500m,
-  data = full_frame)
+cor.test(
+  x = full_frame$mean_arths,
+  y = full_frame$forest_total_3km,
+  method = 'spearman')
+
+rank_test <- tibble(
+  mean_arths = rank(full_frame$mean_arths, ties.method = 'average'),
+  forest_total_3km = rank(full_frame$forest_total_3km, ties.method = 'average'))
+
+test_rho <- cov(rank_test) / (sd(rank_test$mean_arths) * sd(rank_test$forest_total_3km))
+
+n <- length(rank_test$mean_arths)
+r <- cor(x = rank_test$mean_arths, y = rank_test$forest_total_3km, method = 'pearson')
+s <- (n^3 - n) * (1 - r) / 6
+s
+
+t <- r * sqrt((n - 2) / (1 - r^2))
+p <- 2 * (1-pt(q = t, df = n - 2))
+p
+
+ranks <- sapply(
+  X = full_frame %>% select(!c(SiteFK, dom_spp, Latitude, Longitude)),
+  FUN = function(x) rank(x, ties.method = 'average')) %>% 
+  as_tibble() %>% 
+  cbind(SiteFK = full_frame$SiteFK) %>% 
+  relocate(SiteFK)
+
+map(
+  ranks[,2:13],
+  function(arths) 
+    map(
+      ranks[,14:67],
+      function(landscape) (cov(cbind(arths, landscape)) / (sd(arths) * sd(landscape)))[[2]]
+    )
+)
+
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
