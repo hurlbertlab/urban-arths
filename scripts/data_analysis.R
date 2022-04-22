@@ -176,6 +176,8 @@ abundance_frames <- map(
 
 # correlations
 
+# test spearman rank correlation calculations
+
 cor.test(
   x = full_frame$mean_arths,
   y = full_frame$forest_total_3km,
@@ -196,6 +198,7 @@ t <- r * sqrt((n - 2) / (1 - r^2))
 p <- 2 * (1-pt(q = t, df = n - 2))
 p
 
+# make a dataframe of ranks for all variables
 ranks <- sapply(
   X = full_frame %>% select(!c(SiteFK, dom_spp, Latitude, Longitude)),
   FUN = function(x) rank(x, ties.method = 'average')) %>% 
@@ -203,7 +206,8 @@ ranks <- sapply(
   cbind(SiteFK = full_frame$SiteFK) %>% 
   relocate(SiteFK)
 
-map(
+# map spearman coefficients to a list
+spearman_coefficients <- map(
   ranks[,2:13],
   function(arths) 
     map(
@@ -212,6 +216,36 @@ map(
     )
 )
 
+spearman_df <- map(
+  1:12,
+  ~ spearman_coefficients[.x] %>% 
+    unlist() %>% 
+    bind_rows() %>% 
+    rename_with(
+      .fn = function(n) str_remove(n, '.*\\.')
+    )
+) %>% 
+  bind_rows() %>% 
+  cbind(arth_trait = names(spearman_coefficients)) %>% 
+  relocate(arth_trait)
+
+map(
+  c('500m','1km','2km','3km','5km','10km'),
+  ~ spearman_df %>% 
+    select(
+      arth_trait,
+      ends_with(.x)
+    )
+) %>% 
+  set_names(nm = c(
+    'spearman_500m',
+    'spearman_1km',
+    'spearman_2km',
+    'spearman_3km',
+    'spearman_5km',
+    'spearman_10km')
+  ) %>% 
+  list2env(envir = .GlobalEnv)
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
