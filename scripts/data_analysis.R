@@ -247,6 +247,16 @@ map(
   ) %>% 
   list2env(envir = .GlobalEnv)
 
+map(
+  ranks[,2:13],
+  function(arths){
+    n <- nrow(ranks)
+    r <- cor(x = arths, y = rank_test$forest_total_3km, method = 'pearson')
+    t <- r * sqrt((n - 2) / (1 - r^2))
+    p <- 2 * (1-pt(q = t, df = n - 2))
+    p
+  })
+
 # next steps
 ## model strength of responses to each landscape scale to select for final models
 ## set up initial models with each response variable (mean_arths:percent_truebugs) across sampling types (visual, beat sheet, both)
