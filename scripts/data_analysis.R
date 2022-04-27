@@ -251,11 +251,13 @@ map(
   ranks[,2:13],
   function(arths){
     n <- nrow(ranks)
-    r <- cor(x = arths, y = rank_test$forest_total_3km, method = 'pearson')
+    r <- cor(x = arths, y = ranks$forest_total_3km, method = 'pearson')
     t <- r * sqrt((n - 2) / (1 - r^2))
     p <- 2 * (1-pt(q = t, df = n - 2))
     p
   })
+
+
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
