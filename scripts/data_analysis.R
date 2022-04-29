@@ -5,6 +5,8 @@ library(tidyverse)
 
 library(lme4)
 
+library(fields)
+
 cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>% 
   filter(
     Name != 'Example Site',
@@ -234,8 +236,8 @@ map(
   ~ spearman_df %>% 
     select(
       arth_trait,
-      ends_with(.x)
-    )
+      ends_with(.x)) %>% 
+    column_to_rownames(var = 'arth_trait')
 ) %>% 
   set_names(nm = c(
     'spearman_500m',
@@ -247,16 +249,69 @@ map(
   ) %>% 
   list2env(envir = .GlobalEnv)
 
-map(
+spearman_p <- map(
   ranks[,2:13],
   function(arths){
+    map(
+      ranks[,14:67],
+      function(landscape){
     n <- nrow(ranks)
-    r <- cor(x = arths, y = ranks$forest_total_3km, method = 'pearson')
+    r <- cor(x = arths, y = landscape, method = 'pearson')
     t <- r * sqrt((n - 2) / (1 - r^2))
     p <- 2 * (1-pt(q = t, df = n - 2))
     p
+      })
   })
 
+spearman_p_df <- map(
+  1:12,
+  ~ spearman_p[.x] %>% 
+    unlist() %>% 
+    bind_rows() %>% 
+    rename_with(
+      .fn = function(n) str_remove(n, '.*\\.')
+    )
+) %>% 
+  bind_rows() %>% 
+  cbind(arth_trait = names(spearman_p)) %>% 
+  relocate(arth_trait)
+
+map(
+  c('500m','1km','2km','3km','5km','10km'),
+  ~ spearman_p_df %>% 
+    select(
+      arth_trait,
+      ends_with(.x)) %>% 
+    column_to_rownames(var = 'arth_trait')
+) %>% 
+  set_names(nm = c(
+    'spearman_p_500m',
+    'spearman_p_1km',
+    'spearman_p_2km',
+    'spearman_p_3km',
+    'spearman_p_5km',
+    'spearman_p_10km')
+  ) %>% 
+  list2env(envir = .GlobalEnv)
+
+image.real <- function(
+    mat, 
+    xCol = c('green4', 'green2', 'green', 'white', 'white', 'red', 'red2', 'red4'), 
+    range = c(-1,1), 
+    x.labels = rownames(mat), 
+    y.labels = colnames(mat)) { 
+  mat <- t(mat)[,nrow(mat):1]
+  fields::image.plot(
+    mat, 
+    axes = FALSE, 
+    zlim = range, 
+    col = colorRampPalette(xCol)(30))
+  axis(1, at = seq(0, 1, length = nrow(mat)), labels = x.labels)
+  axis(2, at = seq(0, 1, length = ncol(mat)), labels = y.labels, las = 2)
+  box() 
+}
+
+image.real(mat = spearman_3km)
 
 
 # next steps
