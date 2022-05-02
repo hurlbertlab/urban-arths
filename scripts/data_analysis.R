@@ -306,8 +306,8 @@ image.real <- function(
     axes = FALSE, 
     zlim = range, 
     col = colorRampPalette(xCol)(30))
-  axis(1, at = seq(0, 1, length = nrow(mat)), labels = x.labels)
-  axis(2, at = seq(0, 1, length = ncol(mat)), labels = y.labels, las = 2)
+  axis(1, at = seq(0, 1, length = nrow(mat)), labels = x.labels, cex.axis = 0.5, las = 2)
+  axis(2, at = seq(0, 1, length = ncol(mat)), labels = y.labels, las = 2, cex.axis = 0.5, las = 1)
   box() 
 }
 
