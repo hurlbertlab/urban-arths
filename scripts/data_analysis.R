@@ -249,50 +249,50 @@ map(
   ) %>% 
   list2env(envir = .GlobalEnv)
 
-spearman_p <- map(
-  ranks[,2:13],
-  function(arths){
-    map(
-      ranks[,14:67],
-      function(landscape){
-    n <- nrow(ranks)
-    r <- cor(x = arths, y = landscape, method = 'pearson')
-    t <- r * sqrt((n - 2) / (1 - r^2))
-    p <- 2 * (1-pt(q = t, df = n - 2))
-    p
-      })
-  })
-
-spearman_p_df <- map(
-  1:12,
-  ~ spearman_p[.x] %>% 
-    unlist() %>% 
-    bind_rows() %>% 
-    rename_with(
-      .fn = function(n) str_remove(n, '.*\\.')
-    )
-) %>% 
-  bind_rows() %>% 
-  cbind(arth_trait = names(spearman_p)) %>% 
-  relocate(arth_trait)
-
-map(
-  c('500m','1km','2km','3km','5km','10km'),
-  ~ spearman_p_df %>% 
-    select(
-      arth_trait,
-      ends_with(.x)) %>% 
-    column_to_rownames(var = 'arth_trait')
-) %>% 
-  set_names(nm = c(
-    'spearman_p_500m',
-    'spearman_p_1km',
-    'spearman_p_2km',
-    'spearman_p_3km',
-    'spearman_p_5km',
-    'spearman_p_10km')
-  ) %>% 
-  list2env(envir = .GlobalEnv)
+# spearman_p <- map(
+#   ranks[,2:13],
+#   function(arths){
+#     map(
+#       ranks[,14:67],
+#       function(landscape){
+#     n <- nrow(ranks)
+#     r <- cor(x = arths, y = landscape, method = 'pearson')
+#     t <- r * sqrt((n - 2) / (1 - r^2))
+#     p <- 2 * (1-pt(q = t, df = n - 2))
+#     p
+#       })
+#   })
+# 
+# spearman_p_df <- map(
+#   1:12,
+#   ~ spearman_p[.x] %>% 
+#     unlist() %>% 
+#     bind_rows() %>% 
+#     rename_with(
+#       .fn = function(n) str_remove(n, '.*\\.')
+#     )
+# ) %>% 
+#   bind_rows() %>% 
+#   cbind(arth_trait = names(spearman_p)) %>% 
+#   relocate(arth_trait)
+# 
+# map(
+#   c('500m','1km','2km','3km','5km','10km'),
+#   ~ spearman_p_df %>% 
+#     select(
+#       arth_trait,
+#       ends_with(.x)) %>% 
+#     column_to_rownames(var = 'arth_trait')
+# ) %>% 
+#   set_names(nm = c(
+#     'spearman_p_500m',
+#     'spearman_p_1km',
+#     'spearman_p_2km',
+#     'spearman_p_3km',
+#     'spearman_p_5km',
+#     'spearman_p_10km')
+#   ) %>% 
+#   list2env(envir = .GlobalEnv)
 
 image.real <- function(
     mat, 
@@ -311,8 +311,17 @@ image.real <- function(
   box() 
 }
 
+image.real(mat = spearman_500m)
+
+image.real(mat = spearman_1km)
+
+image.real(mat = spearman_2km)
+
 image.real(mat = spearman_3km)
 
+image.real(mat = spearman_5km)
+
+image.real(mat = spearman_10km)
 
 # next steps
 ## model strength of responses to each landscape scale to select for final models
