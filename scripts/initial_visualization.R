@@ -23,9 +23,9 @@ sites_sf <-
     coords = c('Longitude', 'Latitude'),
     crs = st_crs(us_map))
 
-lsm_3000m <- read_csv('data/processed/lsm_metrics_3000m.csv')
+lsm_3000m <- read_csv('data/processed/lsm_3km.csv')
 
-pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
+pc_3000m <- read_csv('data/processed/percent_cover_3km.csv')
 
 
 # lsm metrics distributions ------------------------------------------------------
@@ -89,7 +89,7 @@ summary(pc_3000m_sums$forest_total)
 # maps --------------------------------------------------------------------
 
 sf_stats <- sites_sf %>% 
-  left_join(lsm_3000m, by = c('ID' = 'siteID', 'Name')) %>%
+  left_join(lsm_3000m, by = c('ID' = 'siteID')) %>%
   left_join(pc_3000m_sums, by = c('ID' = 'siteID', 'Name'))
 
 # map color by amount of urban cover
@@ -109,3 +109,4 @@ ggplot(us_map) +
     data = sf_stats,
     mapping = aes(
       color = forest_total))
+

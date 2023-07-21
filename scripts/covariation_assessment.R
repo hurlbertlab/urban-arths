@@ -7,29 +7,30 @@ library(lubridate)
 library(stringr)
 library(corrplot)
 
-lsm_500m <- read_csv('data/processed/lsm_metrics_500m.csv')
+lsm_500m <- read_csv('data/processed/lsm_500m.csv')
 
-lsm_1000m <- read_csv('data/processed/lsm_metrics_1000m.csv')
+lsm_1000m <- read_csv('data/processed/lsm_1km.csv')
 
-lsm_3000m <- read_csv('data/processed/lsm_metrics_3000m.csv')
+lsm_3000m <- read_csv('data/processed/lsm_3km.csv')
 
-lsm_5000m <- read_csv('data/processed/lsm_metrics_5000m.csv')
+lsm_5000m <- read_csv('data/processed/lsm_5km.csv')
 
-lsm_10000m <- read_csv('data/processed/lsm_metrics_10000m.csv')
+lsm_10000m <- read_csv('data/processed/lsm_10km.csv')
 
 pc_500m <- read_csv('data/processed/percent_cover_500m.csv')
 
-pc_1000m <- read_csv('data/processed/percent_cover_1000m.csv')
+pc_1000m <- read_csv('data/processed/percent_cover_1km.csv')
 
-pc_3000m <- read_csv('data/processed/percent_cover_3000m.csv')
+pc_3000m <- read_csv('data/processed/percent_cover_3km.csv')
 
-pc_5000m <- read_csv('data/processed/percent_cover_5000m.csv')
+pc_5000m <- read_csv('data/processed/percent_cover_5km.csv')
 
-pc_10000m <- read_csv('data/processed/percent_cover_10000m.csv')
+pc_10000m <- read_csv('data/processed/percent_cover_10km.csv')
 
 
 # plot correlation matrix ----------------------------------------
 
+# calculate total forest cover at each site
 map(
   list(pc_500m,pc_1000m,pc_3000m,pc_5000m,pc_10000m),
   function(x){
@@ -37,13 +38,14 @@ map(
     x %>% 
       rowwise() %>% 
       mutate(forest_total = forest_decid + forest_everg + forest_mix) %>% 
-      select(siteID, Name, forest_total)
+      select(siteID, forest_total)
       
   }) %>% 
   set_names(
     c('pc_500m_2', 'pc_1000m_2', 'pc_3000m_2', 'pc_5000m_2', 'pc_10000m_2')) %>% 
   list2env(envir = .GlobalEnv)
 
+# put all data into a list of dataframes with columns renamed to include radii
 mapped_list <- map2(
   list(
     pc_500m_2,pc_1000m_2,pc_3000m_2,pc_5000m_2,pc_10000m_2,
@@ -53,11 +55,11 @@ mapped_list <- map2(
   function(x,y){
     
     x %>% 
-      rename_with(~ str_c(., y, sep = '_'), .cols = 3:length(x)) %>% 
-      select(-Name)
+      rename_with(~ str_c(., y, sep = '_'), .cols = 2:length(x))
     
   })
 
+# join all data into single dataframe
 combined_data <- mapped_list[[1]] %>% 
   full_join(mapped_list[[2]]) %>% 
   full_join(mapped_list[[3]]) %>% 
@@ -69,6 +71,7 @@ combined_data <- mapped_list[[1]] %>%
   full_join(mapped_list[[9]]) %>% 
   full_join(mapped_list[[10]])
 
+# function to calculate matrix of p values for correlations between columns in a dataframe
 pMatrix <- function(mat, ...){
   mat <- as.matrix(mat)
   n <- ncol(mat)
@@ -86,6 +89,7 @@ pMatrix <- function(mat, ...){
 
 p_vals <- pMatrix(combined_data)
 
+# generate a visualizqtion of correlations between variables
 combined_data %>% 
   cor(use = 'complete.obs') %>%
   corrplot(

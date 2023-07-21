@@ -7,6 +7,7 @@ library(lme4)
 
 library(fields)
 
+# read in CC data
 cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>% 
   filter(
     Name != 'Example Site',
@@ -22,37 +23,30 @@ cc_full <- read_csv('data/processed/cleaned_cc_2022-04-06.csv', ) %>%
     Quantity = ifelse(Length < 5, 0, Quantity),
     Biomass_mg = ifelse(Length < 5, NA, Biomass_mg))
 
+# read in site data
 sites <- read_csv('data/raw/2021-11-18_Site.csv') %>% 
   filter(
+    # filter our example site and non-US sites
     Name != 'Example Site',
     !Region %in% c('ON','AB','AK'))
 
+# read in plant data
 cc_plants <- read_csv('data/raw/2021-11-18_Plant.csv') %>% 
   # filter to sites present in other frames by site ID because Region and Name are absent
   filter(!SiteFK %in% c(2,100,106,107,161,205,225,258,273,277,278))
 
+# read in landscapemetrics and land cover data
 lsm_500m <- read_csv('data/processed/lsm_500m.csv')
-
 lsm_1km <- read_csv('data/processed/lsm_1km.csv')
-
 lsm_2km <- read_csv('data/processed/lsm_2km.csv')
-
 lsm_3km <- read_csv('data/processed/lsm_3km.csv')
-
 lsm_5km <- read_csv('data/processed/lsm_5km.csv')
-
 lsm_10km <- read_csv('data/processed/lsm_10km.csv')
-
 pc_500m <- read_csv('data/processed/percent_cover_500m.csv')
-
 pc_1km <- read_csv('data/processed/percent_cover_1km.csv')
-
 pc_2km <- read_csv('data/processed/percent_cover_2km.csv')
-
 pc_3km <- read_csv('data/processed/percent_cover_3km.csv')
-
 pc_5km <- read_csv('data/processed/percent_cover_5km.csv')
-
 pc_10km <- read_csv('data/processed/percent_cover_10km.csv')
 
 # data preparation --------------------------------------------------------
@@ -112,7 +106,7 @@ pc <- map2(
   bind_cols() %>% 
   cbind(siteID = pc_500m$siteID)
 
-# creating dataframes for analysis
+# creating dataframes with abundance metrics for arthropod groups for analysis separated by survey method
 
 abundance_frames <- map(
   list('Beat sheet', 'Visual', c('Beat sheet', 'Visual')),
@@ -294,6 +288,8 @@ map(
 #   ) %>% 
 #   list2env(envir = .GlobalEnv)
 
+# create plots with visual indication of correlations between abundance of arthropod groups and landscape traits
+
 image.real <- function(
     mat, 
     xCol = c('green4', 'green2', 'green', 'white', 'white', 'red', 'red2', 'red4'), 
@@ -322,23 +318,3 @@ image.real(mat = spearman_3km)
 image.real(mat = spearman_5km)
 
 image.real(mat = spearman_10km)
-
-# next steps
-## model strength of responses to each landscape scale to select for final models
-## set up initial models with each response variable (mean_arths:percent_truebugs) across sampling types (visual, beat sheet, both)
-## pull environmental data to use in models
-
-# assessing common catch groups for local beat sheets
-
-cc_full %>% 
-  filter(
-    Name %in% c(
-      'NC State University',
-      'UNC Chapel Hill Campus',
-      'Prairie Ridge Ecostation',
-      'NC Botanical Garden'),
-    Year %in% 2018:2021,
-    ObservationMethod == 'Beat sheet') %>% 
-  group_by(Group) %>% 
-  summarize(n = n()) %>% 
-  arrange(desc(n))
