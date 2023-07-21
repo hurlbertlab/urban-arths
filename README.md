@@ -1,5 +1,5 @@
 # urban-arths
-Data, code, and output related to analyzing the effects of urbanization on arthropods.
+Data, code, and output for analyzing effects of landscape traits on abundance of arthropod groups using Caterpillars Count! data.
 
 
 scripts/
