@@ -3,21 +3,23 @@
 
 library(tidyverse)
 
+# read in percent cover data
 pc_500 <- read_csv('data/processed/percent_cover_500m.csv')
 
-pc_1000 <- read_csv('data/processed/percent_cover_1000m.csv')
+pc_1000 <- read_csv('data/processed/percent_cover_1km.csv')
 
-pc_2000 <- read_csv('data/processed/percent_cover_2000m.csv')
+pc_2000 <- read_csv('data/processed/percent_cover_2km.csv')
 
-pc_3000 <- read_csv('data/processed/percent_cover_3000m.csv')
+pc_3000 <- read_csv('data/processed/percent_cover_3km.csv')
 
-pc_5000 <- read_csv('data/processed/percent_cover_5000m.csv')
+pc_5000 <- read_csv('data/processed/percent_cover_5km.csv')
 
-pc_10000 <- read_csv('data/processed/percent_cover_10000m.csv')
+pc_10000 <- read_csv('data/processed/percent_cover_1km.csv')
 
 
 # data prep ---------------------------------------------------------------
 
+# function to calculate total forest and developed cover
 pc_process <- function(frame){
   frame %>% 
     rowwise() %>% 
@@ -27,6 +29,7 @@ pc_process <- function(frame){
     select(siteID, forest_total, devo_total)
 }
 
+# run the function across all analyzed radii from sites
 map(
   list(pc_500,pc_1000,pc_2000,pc_3000,pc_5000,pc_10000),
   ~ pc_process(.)
